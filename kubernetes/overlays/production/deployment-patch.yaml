@@ -8,7 +8,7 @@ spec:
   template:
     spec:
       containers:
-      - name: cache-app-container # Must match the container name in the base
+      - name: app
         env:
           - name: GCLOUD_PROJECT_ID
             value: "${GCP_PROJECT_ID}" # Will be replaced by CI/CD
