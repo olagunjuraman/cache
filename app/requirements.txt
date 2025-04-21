@@ -5,5 +5,6 @@ gunicorn>=20.0
 google-cloud-pubsub>=2.5
 google-cloud-secret-manager>=2.5
 # Cloud SQL Connector and DB Driver
-google-cloud-sql-connector[pg8000]>=1.0
+google-cloud-sql-connector>=1.0
+pg8000
 SQLAlchemy>=1.4 
