@@ -1,0 +1,102 @@
+name: Build and Deploy to GKE
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GCP_PROJECT_ID:
+  GCP_REGION: us-central1
+  GKE_CLUSTER_NAME: cache-assessment-cluster
+  GAR_REPO_URL_BASE: us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/app-images
+  WIF_POOL_PROVIDER: 
+  CICD_SERVICE_ACCOUNT: cicd-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+  DB_USER: appuser
+  DB_NAME: appdb
+  DB_INSTANCE_CONNECTION_NAME: ${GCP_PROJECT_ID}:us-central1:cache-assessment-db
+  PUBSUB_TOPIC_ID: cache-assessment-topic
+
+  DB_PASSWORD_SECRET_ID: db-password 
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write' 
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Authenticate to Google Cloud
+      uses: 'google-github-actions/auth@v1'
+      with:
+        workload_identity_provider: ${{ env.WIF_POOL_PROVIDER }}
+        service_account: ${{ env.CICD_SERVICE_ACCOUNT }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Configure Docker (authenticated via gcloud)
+      run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+    - name: Determine Target Environment and Image Tag
+      id: vars
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "ENVIRONMENT=production" >> $GITHUB_OUTPUT
+        else
+          echo "ENVIRONMENT=staging" >> $GITHUB_OUTPUT
+        fi
+        # Construct full image tag
+        IMAGE_TAG="${{ env.GAR_REPO_URL_BASE }}/cache-app:${{ github.sha }}"
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
+        # Define Kustomize directory path
+        KUSTOMIZE_DIR="kubernetes/overlays/${{ steps.vars.outputs.ENVIRONMENT }}"
+        echo "KUSTOMIZE_DIR=$KUSTOMIZE_DIR" >> $GITHUB_OUTPUT
+
+    - name: Build Docker image
+      run: docker build -t ${{ steps.vars.outputs.IMAGE_TAG }} ./app
+
+    - name: Push Docker image to Artifact Registry
+      run: docker push ${{ steps.vars.outputs.IMAGE_TAG }}
+
+    - name: Install Kustomize
+      run: |
+        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        sudo mv kustomize /usr/local/bin/
+
+    - name: Get GKE Credentials
+      run: gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.GCP_REGION }} --project ${{ env.GCP_PROJECT_ID }}
+
+    - name: Prepare Kustomize Substitutions
+      id: kustomize_vars
+      run: |
+        KUSTOMIZE_PATCH_FILE="${{ steps.vars.outputs.KUSTOMIZE_DIR }}/deployment-patch.yaml"
+        KUSTOMIZE_BASE_DEPLOYMENT="kubernetes/base/deployment.yaml"
+        echo "Patching $KUSTOMIZE_PATCH_FILE and $KUSTOMIZE_BASE_DEPLOYMENT"
+        
+        # Substitute values in the overlay patch file
+        sed -i "s|\\\${GCP_PROJECT_ID}|${{ env.GCP_PROJECT_ID }}|g" "$KUSTOMIZE_PATCH_FILE"
+        sed -i "s|\\\${DB_USER}|${{ env.DB_USER }}|g" "$KUSTOMIZE_PATCH_FILE"
+        sed -i "s|\\\${DB_NAME}|${{ env.DB_NAME }}|g" "$KUSTOMIZE_PATCH_FILE"
+        sed -i "s|\\\${DB_INSTANCE_CONNECTION_NAME}|${{ env.DB_INSTANCE_CONNECTION_NAME }}|g" "$KUSTOMIZE_PATCH_FILE"
+        sed -i "s|\\\${PUBSUB_TOPIC_ID}|${{ env.PUBSUB_TOPIC_ID }}|g" "$KUSTOMIZE_PATCH_FILE"
+        sed -i "s|\\\${DB_PASSWORD_SECRET_ID}|${{ env.DB_PASSWORD_SECRET_ID }}|g" "$KUSTOMIZE_PATCH_FILE"
+
+        # Substitute PROJECT_ID in base ServiceAccount annotation
+        sed -i "s|\\\${PROJECT_ID}|${{ env.GCP_PROJECT_ID }}|g" "$KUSTOMIZE_BASE_DEPLOYMENT"
+
+    - name: Deploy to GKE using Kustomize
+      run: |
+        # Use the correct directory variable
+        cd ${{ steps.vars.outputs.KUSTOMIZE_DIR }}
+        kustomize edit set image placeholder-image=${{ steps.vars.outputs.IMAGE_TAG }}
+        echo "Applying Kustomize configuration from $(pwd)"
+        kustomize build . | kubectl apply -f -
+        cd - # Return to previous directory
+
+    - name: Verify Deployment
+      run: kubectl rollout status deployment/cache-app -n ${{ steps.vars.outputs.ENVIRONMENT }} --timeout=5m

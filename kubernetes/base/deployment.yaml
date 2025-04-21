@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-ksa
+  annotations:
+    iam.gke.io/gcp-service-account: app-sa@${PROJECT_ID}.iam.gserviceaccount.com # Needs PROJECT_ID replacement
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache-app
+  labels:
+    app: cache-app
+spec:
+  replicas: 1 # Default replicas, will be patched by overlays
+  selector:
+    matchLabels:
+      app: cache-app
+  template:
+    metadata:
+      labels:
+        app: cache-app
+    spec:
+      serviceAccountName: app-ksa # Use the KSA linked to GCP SA
+      containers:
+      - name: app
+        image: placeholder-image # Image URL will be set by Kustomize/CI/CD
+        ports:
+        - containerPort: 8080
+        env:
+        # Environment variables injected via Kustomize patches
+        # Example Structure (will be defined in overlays):
+        # - name: PROJECT_ID
+        #   value: "your-gcp-project-id"
+        # - name: DB_USER
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: app-config
+        #       key: db_user
+        # - name: PUBSUB_TOPIC_ID
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: app-config
+        #       key: pubsub_topic_id
+        # - name: DB_INSTANCE_CONNECTION_NAME
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: app-config
+        #       key: db_instance_connection_name
+        # - name: DB_NAME
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: app-config
+        #       key: db_name
+        # - name: DB_PASSWORD_SECRET_ID
+        #   value: "db-password"
+        resources: # Basic resource requests/limits, adjust as needed
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
+      # Optional: Add Cloud SQL Proxy sidecar if not using direct connection from connector
+      # - name: cloud-sql-proxy
+      #   image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.1.0 # Use appropriate version
+      #   args:
+      #     - "--private-ip"
+      #     - "--structured-logs"
+      #     - "${DB_INSTANCE_CONNECTION_NAME}"
+      #   securityContext:
+      #     runAsNonRoot: true
+      #   resources:
+      #     requests:
+      #       memory: "64Mi"
+      #       cpu: "50m" 
