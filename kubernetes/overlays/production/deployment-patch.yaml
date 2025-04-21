@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: cache-app # Must match the base deployment name
 spec:
-  replicas: 4 # Set desired replicas for production
+  replicas: 1 # Set desired replicas for production (Reduced from 4)
   template:
     spec:
       containers:
@@ -20,10 +20,3 @@ spec:
             value: "${DB_INSTANCE_CONNECTION_NAME}" # Will be replaced by CI/CD
           - name: PUBSUB_TOPIC_ID
             value: "${PUBSUB_TOPIC_ID}" # Will be replaced by CI/CD
-          - name: DB_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                # This name should match the Secret created by Terraform/manually
-                # It's kept consistent across environments here, but could be patched differently
-                name: ${DB_PASSWORD_SECRET_ID} # Use placeholder
-                key: password
