@@ -2,7 +2,7 @@ import os
 import logging
 from flask import Flask, request, jsonify
 from google.cloud import pubsub_v1
-from google.cloud.sql.connector import Connector  # This is the correct import
+from google.cloud.sql.connector import Connector  
 import sqlalchemy
 from google.cloud import secretmanager
 
@@ -16,7 +16,7 @@ PROJECT_ID = os.environ.get("PROJECT_ID")
 DB_USER = os.environ.get("DB_USER")
 DB_NAME = os.environ.get("DB_NAME")
 DB_INSTANCE_CONNECTION_NAME = os.environ.get("DB_INSTANCE_CONNECTION_NAME")
-DB_PASSWORD_SECRET_ID = os.environ.get("DB_PASSWORD_SECRET_ID", "db-password") # Default secret name
+DB_PASSWORD_SECRET_ID = os.environ.get("DB_PASSWORD_SECRET_ID", "db-password") 
 DB_PASSWORD_SECRET_VERSION = os.environ.get("DB_PASSWORD_SECRET_VERSION", "latest")
 PUBSUB_TOPIC_ID = os.environ.get("PUBSUB_TOPIC_ID")
 
@@ -59,7 +59,7 @@ def init_connection_pool() -> sqlalchemy.engine.base.Engine:
             pool_size=5,
             max_overflow=2,
             pool_timeout=30,  
-            pool_recycle=1800,  # 30 minutes
+            pool_recycle=1800,  
         )
         pool.dialect.description_encoding = None
         return pool
@@ -114,7 +114,6 @@ def post_message():
     if db_pool:
         try:
             with db_pool.connect() as db_conn:
-                # Create table if it doesn't exist (simple example)
                 db_conn.execute(sqlalchemy.text(
                     "CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, content TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW());"
                 ))
