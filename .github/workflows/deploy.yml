@@ -6,15 +6,15 @@ on:
       - main
 
 env:
-  GCP_PROJECT_ID:
+  GCP_PROJECT_ID: elegant-theorem-457222-q2
   GCP_REGION: us-central1
   GKE_CLUSTER_NAME: cache-assessment-cluster
-  GAR_REPO_URL_BASE: us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/app-images
-  WIF_POOL_PROVIDER: 
-  CICD_SERVICE_ACCOUNT: cicd-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+  GAR_REPO_URL_BASE: us-central1-docker.pkg.dev/elegant-theorem-457222-q2/app-images
+  WIF_POOL_PROVIDER: projects/370347913434/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+  CICD_SERVICE_ACCOUNT: cicd-sa@elegant-theorem-457222-q2.iam.gserviceaccount.com
   DB_USER: appuser
   DB_NAME: appdb
-  DB_INSTANCE_CONNECTION_NAME: ${GCP_PROJECT_ID}:us-central1:cache-assessment-db
+  DB_INSTANCE_CONNECTION_NAME: elegant-theorem-457222-q2:us-central1:cache-assessment-db
   PUBSUB_TOPIC_ID: cache-assessment-topic
 
   DB_PASSWORD_SECRET_ID: db-password 
