@@ -69,7 +69,7 @@ jobs:
         sudo mv kustomize /usr/local/bin/
 
     - name: Get GKE Credentials
-      run: gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.GCP_REGION }} --project ${{ env.GCP_PROJECT_ID }}
+      run: gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --zone us-central1-a --project ${{ env.GCP_PROJECT_ID }}
 
     - name: Prepare Kustomize Substitutions
       id: kustomize_vars
