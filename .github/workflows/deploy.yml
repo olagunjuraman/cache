@@ -98,11 +98,17 @@ jobs:
     - name: Deploy to GKE using Kustomize
       run: |
         # Use the correct directory variable
-        cd ${{ steps.vars.outputs.KUSTOMIZE_DIR }}
+        TARGET_DIR=${{ steps.vars.outputs.KUSTOMIZE_DIR }}
+        cd $TARGET_DIR
+        
+        echo "Setting image in Kustomization: placeholder-image=${{ steps.vars.outputs.IMAGE_TAG }}"
         kustomize edit set image placeholder-image=${{ steps.vars.outputs.IMAGE_TAG }}
+        
         echo "Applying Kustomize configuration from $(pwd)"
         kustomize build . | kubectl apply -f -
-        cd - # Return to previous directory
+        
+        # Go back to the previous directory
+        cd -
 
     - name: Verify Deployment
       run: kubectl rollout status deployment/cache-app -n ${{ steps.vars.outputs.ENVIRONMENT }} --timeout=5m
