@@ -97,17 +97,34 @@ jobs:
 
     - name: Deploy to GKE using Kustomize
       run: |
-        # Use the correct directory variable
         TARGET_DIR=${{ steps.vars.outputs.KUSTOMIZE_DIR }}
+        echo "Moving to $TARGET_DIR"
         cd $TARGET_DIR
         
         echo "Setting image in Kustomization: placeholder-image=${{ steps.vars.outputs.IMAGE_TAG }}"
         kustomize edit set image placeholder-image=${{ steps.vars.outputs.IMAGE_TAG }}
+        if [ $? -ne 0 ]; then
+          echo "::error::kustomize edit set image failed"
+          exit 1
+        fi
+
+        echo "Building manifest..."
+        kustomize build . -o manifest.yaml
+        if [ $? -ne 0 ]; then
+          echo "::error::kustomize build failed"
+          cat kustomization.yaml # Print the kustomization file for debugging
+          exit 1
+        fi
+
+        echo "Applying manifest.yaml"
+        cat manifest.yaml # Print the manifest for debugging
+        kubectl apply -f manifest.yaml
+        if [ $? -ne 0 ]; then
+          echo "::error::kubectl apply failed"
+          exit 1
+        fi
         
-        echo "Applying Kustomize configuration from $(pwd)"
-        kustomize build . | kubectl apply -f -
-        
-        # Go back to the previous directory
+        echo "Returning to previous directory"
         cd -
 
     - name: Verify Deployment
