@@ -46,16 +46,19 @@ jobs:
       id: vars
       run: |
         if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "ENVIRONMENT=production" >> $GITHUB_OUTPUT
+          TARGET_ENV="production"
         else
-          echo "ENVIRONMENT=staging" >> $GITHUB_OUTPUT
+          TARGET_ENV="staging"
         fi
+        echo "ENVIRONMENT=$TARGET_ENV" >> $GITHUB_OUTPUT
+
         # Construct full image tag
         IMAGE_TAG="${{ env.GAR_REPO_URL_BASE }}/cache-app:${{ github.sha }}"
         echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
-        # Define Kustomize directory path
-        KUSTOMIZE_DIR="kubernetes/overlays/${{ steps.vars.outputs.ENVIRONMENT }}"
-        echo "KUSTOMIZE_DIR=$KUSTOMIZE_DIR" >> $GITHUB_OUTPUT
+
+        # Define Kustomize directory path using the shell variable
+        KUSTOMIZE_PATH="kubernetes/overlays/$TARGET_ENV"
+        echo "KUSTOMIZE_DIR=$KUSTOMIZE_PATH" >> $GITHUB_OUTPUT
 
     - name: Build Docker image
       run: docker build -t ${{ steps.vars.outputs.IMAGE_TAG }} ./app
