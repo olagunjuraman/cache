@@ -1,9 +1,8 @@
-
 import os
 import logging
 from flask import Flask, request, jsonify
 from google.cloud import pubsub_v1
-from google.cloud.sql.connector import Connector
+from google.cloud.sql.connector import Connector  # This is the correct import
 import sqlalchemy
 from google.cloud import secretmanager
 
@@ -135,4 +134,4 @@ def post_message():
 
 if __name__ == '__main__':
     # Use Gunicorn in production via Dockerfile CMD
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080))) 
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
